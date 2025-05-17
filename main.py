@@ -35,7 +35,7 @@ class Player(pygame.sprite.Sprite, Camera):
     def __init__(self, image_lists, pos):
         pygame.sprite.Sprite.__init__(self)
         self.image_lists = image_lists
-        self.image = self.image_lists[0]
+        self.image = self.image_lists['idle'][0]
         self.current_list = player_idle_image
         self.rect = self.image.get_rect()
         self.rect.x = pos[0]
@@ -45,11 +45,12 @@ class Player(pygame.sprite.Sprite, Camera):
         self.anime_idle = True
         self.anime_jump = False
         self.anime_duble_jump = False
+        self.anime_run = False
         self.speed = 5
         self.frame = 0
         self.skore = 0
         self.timer_anime = 0
-        self.anime = False
+        self.anime = True
         self.key = pygame.key.get_pressed()
         self.dir = 'right'
         self.hp = 100
@@ -57,32 +58,40 @@ class Player(pygame.sprite.Sprite, Camera):
         self.duble_jump = True
         self.timer_jump = 0
 
+
     def update(self):
 
         key = pygame.key.get_pressed()
         if key[pygame.K_d]:
             self.rect.x += self.speed
-
-            self.anime = True
+            self.dir = 'right'
+            self.anime_run = True
+            self.anime_idle = False
             self.current_list = player_run_image
-            try:
-                self.image = player_run_image[self.frame]
-            except:
-                self.frame = 0
+            # try:
+            #     self.image = player_run_image[self.frame]
+            # except:
+            #     self.frame = 0
             if self.rect.right > 1000:
                 self.rect.right = 1000
                 camera_group.camera_update(-self.speed, 0)
-        if key[pygame.K_a]:
+        elif key[pygame.K_a]:
             self.rect.x -= self.speed
-            self.anime = True
+            self.anime_run = True
+            self.anime_idle = False
             self.current_list = player_run_image
-            try:
-                self.image = pygame.transform.flip(player_run_image[self.frame], True, False)
-            except:
-                self.frame = 0
+            self.dir = 'left'
+            # try:
+            #     self.image = pygame.transform.flip(player_run_image[self.frame], True, False)
+            # except:
+            #     self.frame = 0
             if self.rect.left < 100:
                 self.rect.left = 100
                 camera_group.camera_update(+self.speed, 0)
+        else:
+            self.anime_run = False
+            self.anime_idle = True
+            self.current_list = self.image_lists['idle']
         if self.rect.bottom > 900:
             self.rect.bottom = 900
             camera_group.camera_update(0, -self.velocity_y)
@@ -94,7 +103,7 @@ class Player(pygame.sprite.Sprite, Camera):
         self.key = pygame.key.get_pressed()
 
     def animation(self):
-        print(self.frame)
+        print(self.anime_run, self.anime_idle)
         if self.anime:
             self.timer_anime += 1
             if self.timer_anime / FPS > 0.1:
@@ -110,21 +119,41 @@ class Player(pygame.sprite.Sprite, Camera):
                         self.anime_duble_jump = False
                         self.anime_idle = True
 
+                else:
+                    self.frame += 1
+                self.timer_anime = 0
+        if self.anime_idle:
+            self.current_list_image = self.image_lists['idle']
+        elif self.anime_run:
+            self.current_list_image = self.image_lists['run']
+        elif self.anime_jump:
+            self.current_list_image = self.image_lists['jump']
+        elif self.anime_duble_jump:
+            self.current_list_image = self.image_lists['d_jump']
+        try:
+            if self.dir == 'right':
+
+                self.image = self.current_list_image[self.frame]
             else:
-                self.frame += 1
-            self.timer_anime = 0
+
+                self.image = pygame.transform.flip(self.current_list_image[self.frame], True, False)
+        except:
+            self.frame = 0
+
+
+
+
 
 
 
     def jump(self):
         if self.key[pygame.K_SPACE] and self.on_ground:
-            print(2)
             self.velocity_y = -15
             self.on_ground = False
+            self.anime_jump = True
         if self.on_ground == False:
             self.timer_jump += 1
             if self.key[pygame.K_SPACE] and self.duble_jump and self.timer_jump / FPS > 0.3:
-                print(3)
                 self.velocity_y = -15
                 self.on_ground = False
                 self.anime = True
@@ -278,9 +307,23 @@ class Falling_platform(pygame.sprite.Sprite, Camera):
         self.rect = self.image.get_rect()
         self.rect.x = pos[0]
         self.rect.y = pos[1]
+        self.timer_fall = 0
+        self.collide = False
+        self.anime = True
+        self.timer_anime = 0
+        self.current_image_list = falling_platforms_image
+        self.frame = 0
 
     def update(self):
+        self.animation()
+        if self.collide:
+            self.timer_fall += 1
+            if self.timer_fall / FPS > 1:
+
+                self.rect.y += 5
         if pygame.sprite.spritecollide(self, player_group, False):
+            self.collide = True
+
             if abs(self.rect.top - player.rect.bottom) < 15:
                 player.rect.bottom = self.rect.top - 5
                 player.on_ground = True
@@ -297,6 +340,17 @@ class Falling_platform(pygame.sprite.Sprite, Camera):
                     and abs(self.rect.centery - player.rect.centery) < 50):
                 player.rect.left = self.rect.right
 
+    def animation(self):
+        if self.anime:
+            self.timer_anime += 1
+            if self.timer_anime / FPS > 0.1:
+                if self.frame == len(self.current_image_list) - 1:
+                    self.frame = 0
+                else:
+                    self.frame += 1
+                self.timer_anime = 0
+            self.image = self.current_image_list[self.frame]
+
 
 class Spikes(pygame.sprite.Sprite, Camera):
     def __init__(self, image, pos):
@@ -311,14 +365,38 @@ class Melon(pygame.sprite.Sprite, Camera):
     def __init__(self, image, pos):
         pygame.sprite.Sprite.__init__(self)
         self.image = image[0]
+        self.current_image_list = melon_image
+        self.current_collected_list = collected_image
         self.rect = self.image.get_rect()
         self.rect.x = pos[0]
         self.rect.y = pos[1]
+        self.anime = True
+        self.timer_anime = 0
+        self.frame = 0
+        self.death = False
 
     def update(self):
+        self.animation()
         if pygame.sprite.spritecollide(self, player_group, False):
             player.skore += 50
-            self.kill()
+            self.death = True
+
+
+
+
+    def animation(self):
+        if self.anime:
+            self.timer_anime += 1
+            if self.timer_anime / FPS > 0.1:
+                if self.frame == len(self.current_image_list) - 1:
+
+                    self.frame = 0
+                else:
+                    self.frame += 1
+                self.timer_anime = 0
+            self.image = self.current_image_list[self.frame]
+
+
 
 
 class Earth_mini(pygame.sprite.Sprite, Camera):
@@ -351,7 +429,9 @@ class Earth_mini(pygame.sprite.Sprite, Camera):
 def restart():
     global player_group, player, camera_group, earth_group, earth_mini_group, earth_pink_group, spikes_group, rock_trap_group, falling_platforms_group, med_group, melon_group
     player_group = pygame.sprite.Group()
-    player = Player(player_idle_image, (100, 800))
+    player = Player(
+        {'idle': player_idle_image, 'run': player_run_image, 'jump': player_jump_image, 'd_jump':
+         player_duble_jump_image}, (100, 800))
     player_group.add(player)
     camera_group = SuperGroup()
     earth_group = pygame.sprite.Group()

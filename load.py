@@ -6,6 +6,7 @@ player_jump_image = load_image('image/player/jump')
 falling_platforms_image = load_image('image/traps/falling platform')
 melon_image = load_image('image/fruit/melon')
 player_duble_jump_image = load_image('image/player/duble jump')
+collected_image = load_image('image/fruit/collected')
 
 
 earth_image = pygame.image.load('image/bloks/earth.png').convert_alpha()
